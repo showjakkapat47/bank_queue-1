@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Display Board - ระบบคิวธนาคาร</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Sarabun', -apple-system, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: #138853;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 30px;
+      flex-shrink: 0;
+      height: 64px;
+    }
+    .header-title { font-size: 22px; font-weight: 700; }
+    .header-right { display: flex; gap: 20px; align-items: center; }
+    .header-date  { font-size: 18px; font-weight: 600; }
+    .header-time  {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 16px;
+      border-radius: 8px;
+      font-size: 22px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 12px 16px 8px;
+    }
+    .board {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .board-head {
+      display: grid;
+      background: #138853;
+      color: white;
+      border-radius: 14px 14px 0 0;
+      flex-shrink: 0;
+    }
+    .board-head .cell {
+      padding: 10px 6px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+      border-right: 1px solid rgba(255,255,255,0.2);
+    }
+    .board-head .cell:last-child { border-right: none; }
+    .board-head .cell .sub { font-size: 11px; opacity: 0.85; font-weight: 400; }
+    .board-body {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .board-row {
+      display: grid;
+      flex: 1;
+      border-bottom: 1px solid #e8e8e8;
+      min-height: 0;
+    }
+    .board-row:last-child { border-bottom: none; }
+    .cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid #e8e8e8;
+      overflow: hidden;
+    }
+    .cell:last-child { border-right: none; }
+    .cell-counter { background: #f8f9fa; font-weight: 700; }
+    .cell-counter .counter-id {
+      font-size: clamp(20px, 3.5vw, 42px);
+      color: #138853;
+      font-family: 'Courier New', monospace;
+      line-height: 1;
+    }
+    .cell-counter .counter-name {
+      font-size: clamp(9px, 1.2vw, 13px);
+      color: #888;
+      margin-top: 3px;
+      text-align: center;
+      padding: 0 4px;
+    }
+    .cell-counter .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-top: 4px;
+    }
+    .cell-queue { cursor: default; }
+    .cell-queue .q-num {
+      font-size: clamp(18px, 3vw, 38px);
+      font-weight: 900;
+      font-family: 'Courier New', monospace;
+      color: #333;
+      line-height: 1;
+    }
+    .cell-queue .q-service {
+      font-size: clamp(8px, 1vw, 11px);
+      color: #999;
+      margin-top: 3px;
+      text-align: center;
+      padding: 0 4px;
+    }
+    /* กำลังเรียก */
+    .cell-queue.status-called,
+    .cell-queue.status-recalled {
+      background: #d4edda;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    .cell-queue.status-called .q-num,
+    .cell-queue.status-recalled .q-num { color: #138853; }
+    /* กำลังให้บริการ */
+    .cell-queue.status-in_progress { background: #fff3cd; }
+    .cell-queue.status-in_progress .q-num { color: #856404; }
+    /* รอ */
+    .cell-queue.status-waiting { background: #f8f9fa; }
+    .cell-queue.status-waiting .q-num { color: #555; }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.55; }
+    }
+    .cell-ad { background: #fafafa; overflow: hidden; }
+    .ad-inner {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      color: #ddd; font-style: italic; font-size: 14px;
+    }
+    .ad-inner img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .footer {
+      flex-shrink: 0;
+      height: 36px;
+      background: #222;
+      color: white;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    .ticker-wrap {
+      white-space: nowrap;
+      animation: ticker 30s linear infinite;
+      font-size: 15px;
+      padding-left: 100%;
+    }
+    @keyframes ticker {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">BANK</div>
+    <div class="header-right">
+      <div class="header-date" id="hdate"></div>
+      <div class="header-time" id="htime"></div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="board" id="board">
+      <div style="text-align:center;padding:60px;color:#999;font-size:24px">กำลังโหลดข้อมูล...</div>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="ticker-wrap">ยินดีต้อนรับ &nbsp;|&nbsp; กรุณาเก็บบัตรคิวไว้ &nbsp;|&nbsp; ติดตามหน้าจอแสดงผล</div>
+  </div>
+
+  <script>
+    const API_URL        = window.location.origin;
+    const SHOP_ID        = 1;
+    const REFRESH_MS     = 3000;
+    const QUEUES_PER_ROW = 4;
+
+    const ADS = [
+      // { src: '/images/ad1.jpg' },
+    ];
+
+    let speechEnabled    = true;
+    let announcedKeys = new Set();
+
+    function spell(str) {
+      const map = {
+        A:'เอ',B:'บี',C:'ซี',D:'ดี',E:'อี',F:'เอฟ',G:'จี',H:'เอช',
+        I:'ไอ',J:'เจ',K:'เค',L:'แอล',M:'เอ็ม',N:'เอ็น',O:'โอ',
+        P:'พี',Q:'คิว',R:'อาร์',S:'เอส',T:'ที',U:'ยู',V:'วี',
+        W:'ดับเบิลยู',X:'เอ็กซ์',Y:'วาย',Z:'แซด',
+        '0':'ศูนย์','1':'หนึ่ง','2':'สอง','3':'สาม','4':'สี่',
+        '5':'ห้า','6':'หก','7':'เจ็ด','8':'แปด','9':'เก้า'
+      };
+      return str.toUpperCase().split('').map(c => map[c] || c).join(' ');
+    }
+
+    function announce(queueNum, counterNum) {
+      if (!speechEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(
+        `เชิญหมายเลข ${spell(queueNum)} ที่เคาน์เตอร์ ${spell(String(counterNum||''))} ค่ะ`
+      );
+      u.lang='th-TH'; u.rate=0.85; u.volume=1.0;
+      setTimeout(() => window.speechSynthesis.speak(u), 400);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('htime').textContent =
+        now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      document.getElementById('hdate').textContent =
+        now.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'numeric'});
+    }
+
+    function buildBoard(counters, allQueues) {
+      const board = document.getElementById('board');
+
+      // ── เฉพาะ counter ที่ available หรือ busy ──────────────────
+      const openCounters = counters.filter(c =>
+        c.is_active &&
+        (c.counter_status === 'available' || c.counter_status === 'busy')
+      );
+
+      if (openCounters.length === 0) {
+        board.innerHTML = '<div style="text-align:center;padding:60px;color:#999;font-size:22px">ไม่มีเคาน์เตอร์ที่เปิดให้บริการ</div>';
+        return;
+      }
+
+      // ── slots แต่ละ counter (key = counter_number) ────────────
+      const slots = {};
+      openCounters.forEach(c => { slots[c.counter_number] = []; });
+
+      // ── build prefix → counters map ───────────────────────────
+      // counter_number "A1","A2" → prefix "A"
+      // queue "A002" → prefix "A" → ส่งให้ counter A1, A2
+      const prefixToCounters = {};
+      openCounters.forEach(c => {
+        const prefix = c.counter_number.replace(/\d+$/, ''); // "A1" → "A"
+        if (!prefixToCounters[prefix]) prefixToCounters[prefix] = [];
+        prefixToCounters[prefix].push(c);
+      });
+
+      // counters ที่รับทุก category (category_id = null) → G1 เป็นต้น
+      const universalCounters = openCounters.filter(c => c.category_id === null);
+
+      // ── build counterNumber map: counter_id → counter_number ──
+      const counterIdToNumber = {};
+      openCounters.forEach(c => { counterIdToNumber[c.counter_id] = c.counter_number; });
+
+      // pass 1: active queues → ใส่ slot ของ counter ที่รับอยู่
+      const activeQueues = allQueues.filter(q =>
+        ['called','recalled','in_progress'].includes(q.status) && q.counter_number
+      );
+      activeQueues.forEach(q => {
+        if (slots[q.counter_number] !== undefined) {
+          slots[q.counter_number].push(q);
+        }
+      });
+
+      // pass 2: waiting ที่มี counter_id (โอนมาแล้ว) → ใส่ counter นั้นโดยตรง
+      const transferredQueues = allQueues
+        .filter(q => q.status === 'waiting' && q.counter_id)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+      transferredQueues.forEach(q => {
+        // หา counter_number จาก counter_id
+        const targetCounterNumber = counterIdToNumber[q.counter_id] || q.counter_number;
+        if (targetCounterNumber && slots[targetCounterNumber] !== undefined) {
+          slots[targetCounterNumber].push(q);
+        }
+      });
+
+      // pass 3: waiting ทั่วไป (ไม่มี counter_id) → แจกด้วย prefix + load balance
+      const waitingQueues = allQueues
+        .filter(q => q.status === 'waiting' && !q.counter_id)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+      waitingQueues.forEach(q => {
+        // หา prefix จาก queue_number เช่น "A002" → "A"
+        const prefix = (q.queue_prefix || q.queue_number.replace(/\d+$/, '')).trim();
+
+        // candidates = counter ที่มี prefix ตรงกัน + universal (G1)
+        const candidates = [
+          ...(prefixToCounters[prefix] || []),
+          ...universalCounters.filter(c => !prefixToCounters[prefix]?.includes(c)),
+        ];
+
+        if (candidates.length === 0) return;
+
+        // load balance → เลือก counter ที่มี slot น้อยสุด
+        const target = candidates.reduce((best, cur) =>
+          (slots[cur.counter_number]?.length || 0) < (slots[best.counter_number]?.length || 0)
+            ? cur : best
+        );
+
+        if (slots[target.counter_number] !== undefined) {
+          slots[target.counter_number].push(q);
+        }
+      });
+
+      // ── เรียงคิวใน slot แต่ละ counter ──────────────────────────
+      // active (called/recalled/in_progress) อยู่หน้าเสมอ
+      // waiting เรียงตาม created_at
+      const statusOrder = { called: 0, recalled: 0, in_progress: 0, waiting: 1, on_hold: 1 };
+      Object.keys(slots).forEach(cNum => {
+        slots[cNum].sort((a, b) => {
+          const so = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
+          if (so !== 0) return so;
+          return new Date(a.created_at) - new Date(b.created_at);
+        });
+      });
+
+      // ── render ────────────────────────────────────────────────
+      const colWidths = `120px repeat(${QUEUES_PER_ROW}, 1fr)`;
+      const headCols  = ['เคาน์เตอร์<br><span class="sub">Counter</span>'];
+      for (let i = 1; i <= QUEUES_PER_ROW; i++) {
+        headCols.push(`คิวที่ ${i}<br><span class="sub">Queue</span>`);
+      }
+
+      let html = `
+        <div class="board-head" style="grid-template-columns:${colWidths}">
+          ${headCols.map(h => `<div class="cell">${h}</div>`).join('')}
+        </div>
+        <div class="board-body">
+      `;
+
+      let adIdx = 0;
+      openCounters.forEach(counter => {
+        const cSlots = (slots[counter.counter_number] || []).slice(0, QUEUES_PER_ROW);
+        const isBusy = counter.counter_status === 'busy';
+        const cells  = [];
+
+        for (let i = 0; i < QUEUES_PER_ROW; i++) {
+          if (i < cSlots.length) {
+            const q   = cSlots[i];
+            const cls = `cell cell-queue status-${q.status}`;
+            cells.push(`
+              <div class="${cls}">
+                <div class="q-num">${q.queue_number}</div>
+                <div class="q-service">${q.service_name || q.category_name || ''}</div>
+              </div>
+            `);
+          } else {
+            if (ADS.length > 0) {
+              cells.push(`<div class="cell cell-ad"><div class="ad-inner"><img src="${ADS[adIdx++ % ADS.length].src}" alt="ad"></div></div>`);
+            } else {
+              cells.push(`<div class="cell cell-ad"><div class="ad-inner"></div></div>`);
+            }
+          }
+        }
+
+        html += `
+          <div class="board-row" style="grid-template-columns:${colWidths}">
+            <div class="cell cell-counter">
+              <div class="counter-id">${counter.counter_number}</div>
+              <div class="counter-name">${counter.counter_name}</div>
+              <div class="status-dot" style="background:${isBusy ? '#e67e22' : '#27ae60'}"></div>
+            </div>
+            ${cells.join('')}
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      board.innerHTML = html;
+    }
+
+    async function loadData() {
+      try {
+        const [dispRes, cRes, qRes] = await Promise.all([
+          fetch(`${API_URL}/api/display/current?shop_id=${SHOP_ID}`),
+          fetch(`${API_URL}/api/counters?shop_id=${SHOP_ID}`),
+          fetch(`${API_URL}/api/queues/waiting?shop_id=${SHOP_ID}`),
+        ]);
+
+        const disp    = await dispRes.json();
+        const cData   = await cRes.json();
+        const qData   = await qRes.json();
+
+        const counters = cData.success ? cData.counters           : [];
+        const queues   = qData.success ? qData.waiting_queues     : [];
+        const serving  = disp.success  ? (disp.now_serving || []) : [];
+
+        // merge serving เข้า queues (กรณี called ไม่อยู่ใน waiting list)
+        const queueNums = new Set(queues.map(q => q.queue_number));
+        serving.forEach(q => {
+          if (!queueNums.has(q.queue_number)) queues.push(q);
+        });
+
+        buildBoard(counters, queues);
+
+        // speech
+        const called = serving.filter(q =>
+  q.status === 'called' || q.status === 'recalled'
+);
+
+// reset keys ที่ไม่มีอยู่ใน serving แล้ว (เพื่อไม่ให้ Set โตไปเรื่อยๆ)
+      const currentKeys = new Set(
+        serving.map(q => `${q.queue_number}-${q.recall_count || 0}`)
+      );
+      for (const k of announcedKeys) {
+        if (!currentKeys.has(k)) announcedKeys.delete(k);
+      }
+
+      // ประกาศเฉพาะ key ที่ยังไม่เคยประกาศ
+      for (const q of called) {
+        const key = `${q.queue_number}-${q.recall_count || 0}`;
+        if (!announcedKeys.has(key)) {
+          announcedKeys.add(key);
+          announce(q.queue_number, q.counter_number);
+          break; // ประกาศทีละ 1 เสียง
+        }
+      }
+
+
+      } catch (e) {
+        console.error('Display error:', e);
+      }
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+    loadData();
+    setInterval(loadData, REFRESH_MS);
+
+    document.addEventListener('keydown', e => {
+      if (e.key.toLowerCase() === 's') {
+        speechEnabled = !speechEnabled;
+        console.log('🔊 Speech:', speechEnabled ? 'ON' : 'OFF');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Dashboard - ระบบคิวธนาคาร</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f5f7fa;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Login ── */
+    .login-container {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #138853);
+    }
+    .login-box {
+      background: white; border-radius: 20px;
+      padding: 50px; width: 450px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-header { text-align: center; margin-bottom: 40px; }
+    .login-header h1 { font-size: 32px; color: #333; margin-bottom: 10px; }
+    .login-header p  { font-size: 16px; color: #666; }
+
+    .form-group { margin-bottom: 25px; }
+    .form-group label { display: block; font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px; }
+
+    .form-control {
+      width: 100%; padding: 15px;
+      border: 2px solid #e0e0e0; border-radius: 10px;
+      font-size: 16px; transition: all 0.3s;
+    }
+    .form-control:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+
+    .btn-login {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, #138853);
+      color: white; border: none; border-radius: 10px;
+      font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.3s;
+    }
+    .btn-login:hover    { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102,126,234,0.3); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .password-container { position: relative; }
+    .toggle-password {
+      position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; font-size: 20px; color: #999;
+    }
+    .toggle-password:hover { color: #667eea; }
+
+    .error-message {
+      background: #fee; border: 2px solid #e74c3c;
+      border-radius: 10px; padding: 12px; margin-bottom: 20px;
+      color: #c0392b; font-size: 14px; display: none;
+    }
+    .error-message.show { display: block; }
+
+    /* ── Dashboard ── */
+    .dashboard { display: none; height: 100vh; flex-direction: column; }
+    .dashboard.active { display: flex; }
+
+    .dashboard-header {
+      background: white; padding: 20px 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header-left h2 { font-size: 24px; color: #333; margin-bottom: 5px; }
+    .header-left p  { font-size: 14px; color: #666; }
+    .header-right   { display: flex; gap: 15px; align-items: center; }
+
+    .counter-badge {
+      background: #667eea; color: white;
+      padding: 10px 20px; border-radius: 10px; font-weight: 600;
+    }
+
+    .pause-banner {
+      display: none;
+      background: linear-gradient(135deg, #f39c12, #e67e22);
+      color: white; text-align: center; padding: 12px;
+      font-size: 18px; font-weight: 700;
+      animation: blink-banner 2s infinite;
+    }
+    .pause-banner.show { display: block; }
+    @keyframes blink-banner { 0%,100%{ opacity:1; } 50%{ opacity:0.7; } }
+
+    .btn-pause {
+      background: #f39c12; color: white; border: none;
+      padding: 10px 20px; border-radius: 10px;
+      cursor: pointer; font-weight: 600; transition: all 0.2s;
+    }
+    .btn-pause:hover        { background: #e67e22; }
+    .btn-pause.paused       { background: #27ae60; }
+    .btn-pause.paused:hover { background: #229954; }
+
+    .btn-logout {
+      background: #e74c3c; color: white; border: none;
+      padding: 10px 20px; border-radius: 10px;
+      cursor: pointer; font-weight: 600;
+    }
+    .btn-logout:hover { background: #c0392b; }
+
+    /* ── Layout ── */
+    .dashboard-content { display: flex; flex: 1; overflow: hidden; }
+
+    .queue-sidebar {
+      width: 400px; background: white;
+      border-right: 1px solid #e0e0e0;
+      display: flex; flex-direction: column;
+      height: 100%; overflow: hidden; min-width: 0;
+    }
+    .sidebar-header { padding: 20px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
+    .sidebar-header h3 { font-size: 20px; color: #333; margin-bottom: 10px; }
+
+    .filter-buttons { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .filter-btn {
+      padding: 10px 8px; border: 2px solid #e0e0e0;
+      background: white; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: all 0.2s; text-align: center;
+    }
+    .filter-btn.active { background: #667eea; color: white; border-color: #667eea; }
+
+    /* Quick call bar */
+    .quick-call-bar {
+      flex-shrink: 0; width: 100%; overflow: hidden; box-sizing: border-box;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      border-top: 2px solid #27ae60; border-bottom: 2px solid #27ae60;
+      padding: 10px 12px; margin: 0;
+      display: none; justify-content: space-between; align-items: center;
+      animation: glow 2s infinite;
+    }
+    .quick-call-bar.show { display: flex; }
+    @keyframes glow {
+      0%,100%{ box-shadow: 0 0 5px rgba(39,174,96,0.3); }
+      50%    { box-shadow: 0 0 15px rgba(39,174,96,0.6); }
+    }
+    .next-queue-info { display: flex; flex-direction: column; gap: 4px; }
+    .next-label  { font-size: 12px; color: #27ae60; font-weight: 600; }
+    .next-number { font-size: 20px; font-weight: 900; color: #27ae60; font-family: 'Courier New', monospace; }
+    .btn-call-now {
+      background: #27ae60; color: white; border: none;
+      padding: 8px 14px; border-radius: 8px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0; transition: all 0.2s;
+    }
+    .btn-call-now:hover { background: #229954; transform: scale(1.05); }
+
+    /* Queue list */
+    .queue-list { flex: 1; overflow-y: auto; padding: 15px; min-height: 0; }
+    .queue-list::-webkit-scrollbar       { width: 6px; }
+    .queue-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+    .queue-list::-webkit-scrollbar-thumb { background: #c0c0c0; border-radius: 3px; }
+    .queue-list::-webkit-scrollbar-thumb:hover { background: #667eea; }
+
+    .queue-item {
+      background: #f8f9fa; border: 2px solid #e0e0e0;
+      border-radius: 12px; padding: 15px; margin-bottom: 12px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .queue-item:hover    { border-color: #667eea; transform: translateX(5px); }
+    .queue-item.selected { background: #e8eaf6; border-color: #667eea; }
+    .queue-item.priority { border-left: 5px solid #e74c3c; }
+
+    .queue-header  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .queue-number  { font-size: 24px; font-weight: 700; color: #667eea; }
+    .queue-time    { font-size: 12px; color: #999; }
+    .queue-info    { font-size: 14px; color: #666; margin-bottom: 5px; }
+    .queue-service { font-size: 14px; color: #333; font-weight: 600; }
+
+    .queue-status-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; margin-top: 5px; display: inline-block; }
+    .badge-waiting    { background: #fff3cd; color: #856404; }
+    .badge-called     { background: #d1ecf1; color: #0c5460; }
+    .badge-recalled   { background: #e8daef; color: #8e44ad; }
+    .badge-in_progress{ background: #d4edda; color: #155724; }
+    .badge-on_hold    { background: #fdebd0; color: #e67e22; }
+
+    /* Main panel */
+    .main-panel { flex: 1; padding: 30px; overflow-y: auto; background: #f5f7fa; }
+
+    .empty-state { text-align: center; padding: 100px 20px; color: #999; }
+    .empty-state-icon { font-size: 80px; margin-bottom: 20px; }
+    .empty-state h3   { font-size: 24px; margin-bottom: 10px; }
+
+    .no-queue { text-align: center; padding: 50px; color: #999; }
+    .loading  { text-align: center; padding: 20px; color: #999; }
+
+    /* Queue detail */
+    .queue-detail { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .detail-header { border-bottom: 2px solid #e0e0e0; padding-bottom: 20px; margin-bottom: 20px; }
+    .detail-queue-number { font-size: 48px; font-weight: 700; color: #667eea; margin-bottom: 10px; }
+    .detail-status { display: inline-block; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+
+    .status-waiting     { background: #fff3cd; color: #856404; }
+    .status-called      { background: #d1ecf1; color: #0c5460; }
+    .status-in_progress { background: #d4edda; color: #155724; }
+    .status-in-progress { background: #d4edda; color: #155724; }
+    .status-on_hold     { background: #fdebd0; color: #e67e22; }
+    .status-recalled    { background: #e8daef; color: #8e44ad; }
+
+    .detail-info { margin-bottom: 30px; }
+    .info-row    { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
+    .info-label  { font-size: 16px; color: #666; }
+    .info-value  { font-size: 16px; font-weight: 600; color: #333; }
+
+    /* Action buttons */
+    .action-buttons { display: grid; grid-template-columns: repeat(2,1fr); gap: 15px; }
+    .btn-action { padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-call     { background: #667eea; color: white; }
+    .btn-call:hover:not(:disabled)     { background: #5568d3; transform: translateY(-2px); }
+    .btn-start    { background: #27ae60; color: white; }
+    .btn-start:hover:not(:disabled)    { background: #229954; }
+    .btn-hold     { background: #f39c12; color: white; }
+    .btn-hold:hover:not(:disabled)     { background: #e67e22; }
+    .btn-complete { background: #2ecc71; color: white; }
+    .btn-complete:hover:not(:disabled) { background: #27ae60; }
+    .btn-cancel   { background: #e74c3c; color: white; }
+    .btn-cancel:hover:not(:disabled)   { background: #c0392b; }
+    .btn-recall   { background: #9b59b6; color: white; }
+    .btn-recall:hover:not(:disabled)   { background: #8e44ad; }
+    .btn-resume   { background: #16a085; color: white; }
+    .btn-resume:hover:not(:disabled)   { background: #1abc9c; }
+    .btn-transfer { background: #3498db; color: white; }
+    .btn-transfer:hover:not(:disabled) { background: #2980b9; }
+
+    /* Transfer Modal */
+    .transfer-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      justify-content: center; align-items: center;
+    }
+    .transfer-modal.active { display: flex; }
+    .transfer-modal-content {
+      background: white; border-radius: 20px;
+      padding: 30px; width: 500px; max-width: 90%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    .transfer-modal-header { border-bottom: 2px solid #e0e0e0; padding-bottom: 15px; margin-bottom: 20px; }
+    .transfer-modal-header h3 { font-size: 24px; color: #333; }
+
+    .transfer-form-group { margin-bottom: 20px; }
+    .transfer-form-group label { display: block; font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px; }
+    .transfer-form-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; font-family: inherit; }
+
+    .transfer-modal-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+    .btn-modal          { padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-modal-cancel   { background: #95a5a6; color: white; }
+    .btn-modal-cancel:hover  { background: #7f8c8d; }
+    .btn-modal-confirm  { background: #3498db; color: white; }
+    .btn-modal-confirm:hover { background: #2980b9; }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div class="login-container" id="login-screen">
+  <div class="login-box">
+    <div class="login-header">
+      <h1>Staff Login</h1>
+      <p>ระบบจัดการคิวธนาคาร</p>
+    </div>
+    <div class="error-message" id="error-message"></div>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" class="form-control" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="password-container">
+          <input type="password" id="password" class="form-control" autocomplete="current-password" required>
+          <button type="button" class="toggle-password" onclick="togglePassword()" tabindex="-1">👁️</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="counter-id">เคาน์เตอร์</label>
+        <select id="counter-id" class="form-control" required>
+          <option value="">กำลังโหลด...</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-login" id="login-btn">เข้าสู่ระบบ</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Dashboard ── -->
+<div class="dashboard" id="dashboard">
+  <div class="dashboard-header">
+    <div class="pause-banner" id="pause-banner">
+      ☕ เคาน์เตอร์พักชั่วคราว — <span id="pause-reason-text"></span>
+    </div>
+    <div class="header-left">
+      <h2 id="staff-name">พนักงาน: -</h2>
+      <p id="current-time">-</p>
+    </div>
+    <div class="header-right">
+      <div class="counter-badge" id="counter-name">Counter: -</div>
+      <button class="btn-pause" id="btn-pause" onclick="togglePause()">☕ พักชั่วคราว</button>
+      <button class="btn-logout" onclick="handleLogout()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <div class="queue-sidebar">
+      <div class="sidebar-header">
+        <h3>📋 รายการคิวที่รอ</h3>
+        <div class="filter-buttons">
+          <button class="filter-btn active" onclick="filterQueue('all')">ทั้งหมด (<span id="count-all">0</span>)</button>
+          <button class="filter-btn" onclick="filterQueue('my')">เคาน์เตอร์ของฉัน (<span id="count-my">0</span>)</button>
+          <button class="filter-btn" onclick="filterQueue('on_hold')">คิวที่พัก (<span id="count-on-hold">0</span>)</button>
+        </div>
+      </div>
+      <div class="quick-call-bar" id="quick-call-bar">
+        <div class="next-queue-info">
+          <span class="next-label">คิวถัดไป:</span>
+          <span class="next-number" id="next-queue-number">-</span>
+        </div>
+        <button class="btn-call-now" onclick="callNextWaitingQueue()">📢 เรียกเลย</button>
+      </div>
+      <div class="queue-list" id="queue-list">
+        <div class="loading">กำลังโหลด...</div>
+      </div>
+    </div>
+
+    <div class="main-panel" id="main-panel">
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h3>เลือกคิวเพื่อเริ่มให้บริการ</h3>
+        <p>กดที่คิวทางซ้ายเพื่อดูรายละเอียด</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Transfer Modal ── -->
+<div class="transfer-modal" id="transfer-modal">
+  <div class="transfer-modal-content">
+    <div class="transfer-modal-header"><h3>🔄 โอนย้ายคิวไปเคาน์เตอร์อื่น</h3></div>
+    <div class="transfer-form-group">
+      <label>คิวที่ต้องการโอน:</label>
+      <div style="font-size:24px;font-weight:700;color:#667eea;padding:10px 0;">
+        <span id="transfer-queue-number">-</span>
+      </div>
+    </div>
+    <div class="transfer-form-group">
+      <label for="transfer-counter">เคาน์เตอร์ปลายทาง:</label>
+      <select id="transfer-counter" class="form-control">
+        <option value="">-- เลือกเคาน์เตอร์ --</option>
+      </select>
+    </div>
+    <div class="transfer-form-group" id="transfer-service-group" style="display:none">
+      <label for="transfer-category">ประเภทบริการใหม่:</label>
+      <select id="transfer-category" class="form-control" onchange="loadTransferServices()">
+        <option value="">-- เลือกประเภทบริการ --</option>
+      </select>
+    </div>
+    <div class="transfer-form-group" id="transfer-service-detail-group" style="display:none">
+      <label for="transfer-service">บริการใหม่:</label>
+      <select id="transfer-service" class="form-control">
+        <option value="">-- เลือกบริการ --</option>
+      </select>
+    </div>
+    <div class="transfer-modal-buttons">
+      <button class="btn-modal btn-modal-cancel"  onclick="closeTransferModal()">ยกเลิก</button>
+      <button class="btn-modal btn-modal-confirm" onclick="confirmTransfer()">ยืนยันการโอน</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = window.location.origin;
+  const SHOP_ID = 1;
+
+  let currentStaff   = null;
+  let currentCounter = null;
+  let selectedQueue  = null;
+  let queues         = [];
+  let refreshInterval= null;
+  let currentFilter  = 'my';
+  let isPaused       = false;
+  let transferringQueue = null;
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  }
+  function put(url, body) {
+    return fetch(url, { method: 'PUT',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  }
+
+  const STATUS_TEXT = { waiting:'รอเรียก', called:'ถูกเรียกแล้ว', in_progress:'กำลังให้บริการ', on_hold:'พักคิว', recalled:'เรียกคิวซ้ำ' };
+  const getStatusText = s => STATUS_TEXT[s] || s;
+
+  const EMPTY_STATE = icon => `
+    <div class="empty-state">
+      <div class="empty-state-icon">${icon}</div>
+      <h3>เลือกคิวเพื่อเริ่มให้บริการ</h3>
+    </div>`;
+
+  function showError(msg) {
+    $('error-message').textContent = msg;
+    $('error-message').classList.add('show');
+    setTimeout(() => $('error-message').classList.remove('show'), 5000);
+  }
+
+  // ── Auth ─────────────────────────────────────────────────────────
+  function togglePassword() {
+    const input = $('password');
+    const btn   = event.target;
+    input.type  = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁️' : '👁️‍🗨️';
+  }
+
+  async function loadCounters() {
+    try {
+      const data = await fetch(`${API_URL}/api/counters?shop_id=${SHOP_ID}`).then(r => r.json());
+      if (!data.success) return;
+
+      const select = $('counter-id');
+      select.innerHTML = '<option value="">-- เลือกเคาน์เตอร์ --</option>';
+      const statusMap = { busy:'🔴 ไม่ว่าง', paused:'☕ พักชั่วคราว', offline:'⚫ ปิด' };
+
+      data.counters.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.counter_id;
+        opt.dataset.counterName   = c.counter_name;
+        opt.dataset.counterNumber = c.counter_number;
+        opt.disabled = c.counter_status in statusMap;
+        opt.textContent = `${c.counter_name}${statusMap[c.counter_status] ? ' - ' + statusMap[c.counter_status] : ' - 🟢 ว่าง'}`;
+        select.appendChild(opt);
+      });
+    } catch { $('counter-id').innerHTML = '<option value="">⚠️ โหลดไม่สำเร็จ</option>'; }
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const username  = $('username').value.trim();
+    const password  = $('password').value;
+    const counterId = $('counter-id').value;
+    if (!counterId) { showError('กรุณาเลือกเคาน์เตอร์'); return; }
+
+    const btn = $('login-btn');
+    btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
+
+    try {
+      const loginData = await post(`${API_URL}/api/staff/login`, { username, password }).then(r => r.json());
+      if (!loginData.success) {
+        showError(loginData.error === 'Invalid username or password' ? 'Username หรือ Password ไม่ถูกต้อง' : loginData.error);
+        btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; return;
+      }
+
+      const lockData = await post(`${API_URL}/api/counters/${counterId}/login`, { staff_id: loginData.staff.staff_id }).then(r => r.json());
+      if (!lockData.success) {
+        showError('ไม่สามารถล็อคเคาน์เตอร์: ' + lockData.error);
+        btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; return;
+      }
+
+      const opt = $('counter-id').options[$('counter-id').selectedIndex];
+      currentStaff   = { staff_id: loginData.staff.staff_id, name: `${loginData.staff.first_name} ${loginData.staff.last_name}`, position: loginData.staff.position };
+      currentCounter = { counter_id: counterId, counter_name: opt.dataset.counterName, counter_number: opt.dataset.counterNumber };
+
+      localStorage.setItem('staff_session', JSON.stringify({ staff: currentStaff, counter: currentCounter }));
+      showDashboard();
+    } catch {
+      showError('เข้าสู่ระบบไม่สำเร็จ');
+      btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+    }
+  }
+
+  function showDashboard() {
+    $('login-screen').style.display = 'none';
+    $('dashboard').classList.add('active');
+    $('staff-name').textContent   = `${currentStaff.name} (${currentStaff.position})`;
+    $('counter-name').textContent = currentCounter.counter_name;
+
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    currentFilter = 'my';
+    document.querySelectorAll('.filter-btn').forEach((b, i) => b.classList.toggle('active', i === 1));
+
+    loadQueues();
+    refreshInterval = setInterval(loadQueues, 5000);
+  }
+
+  async function handleLogout() {
+    if (!confirm('ต้องการออกจากระบบหรือไม่?')) return;
+    try { await post(`${API_URL}/api/counters/${currentCounter.counter_id}/logout`, { staff_id: currentStaff.staff_id }); } catch {}
+    localStorage.removeItem('staff_session');
+    clearInterval(refreshInterval);
+    location.reload();
+  }
+
+  function updateClock() {
+    const now = new Date();
+    $('current-time').textContent = `${now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})} ${now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  }
+
+  // ── Queue list ────────────────────────────────────────────────────
+  async function loadQueues() {
+    try {
+      const data = await fetch(`${API_URL}/api/queues/waiting?shop_id=${SHOP_ID}`).then(r => r.json());
+      if (data.success) { queues = data.waiting_queues; renderQueues(); }
+    } catch {}
+  }
+
+  function getMyQueues() {
+    return queues.filter(q => q.counter_number === currentCounter.counter_number && ['called','recalled','in_progress','on_hold'].includes(q.status));
+  }
+
+  function filterQueue(type) {
+    currentFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderQueues();
+  }
+
+  function renderQueues() {
+    const container = $('queue-list');
+
+    let display = queues, empty = 'ไม่มีคิวในหมวดนี้';
+    if (currentFilter === 'my')      { display = getMyQueues(); empty = 'ไม่มีคิวที่เคาน์เตอร์ของคุณ'; }
+    if (currentFilter === 'on_hold') { display = queues.filter(q => q.status === 'on_hold'); empty = 'ไม่มีคิวที่พัก'; }
+
+    $('count-all').textContent     = queues.length;
+    $('count-my').textContent      = getMyQueues().length;
+    $('count-on-hold').textContent = queues.filter(q => q.status === 'on_hold').length;
+
+    if (!display.length) { container.innerHTML = `<div class="no-queue">${empty}</div>`; updateQuickCallButton(); return; }
+
+    container.innerHTML = '';
+    display.forEach(q => {
+      const item = document.createElement('div');
+      item.className = `queue-item${q.priority > 0 ? ' priority' : ''}${selectedQueue?.queue_id === q.queue_id ? ' selected' : ''}`;
+      item.onclick   = () => selectQueue(q);
+      item.innerHTML = `
+        <div class="queue-header">
+          <div class="queue-number">${q.queue_number}</div>
+          <div class="queue-time">${q.waiting_time} นาที</div>
+        </div>
+        <div class="queue-info">${q.category_name}</div>
+        <div class="queue-service">${q.service_name}</div>
+        <span class="queue-status-badge badge-${q.status}">${getStatusText(q.status)}</span>
+        ${q.counter_number ? `<div style="color:#667eea;font-size:12px;margin-top:3px;">📍 ${q.counter_name||'เคาน์เตอร์ '+q.counter_number}</div>` : ''}
+        ${q.priority > 0   ? `<div style="color:#e74c3c;font-size:12px;margin-top:5px;">⚠️ ${q.priority_text}</div>` : ''}
+      `;
+      container.appendChild(item);
+    });
+    updateQuickCallButton();
+  }
+
+  function selectQueue(q) { selectedQueue = q; renderQueues(); showQueueDetail(q); }
+
+  // ── Queue detail ──────────────────────────────────────────────────
+  function showQueueDetail(q) {
+    const isMyQueue    = q.counter_number === currentCounter.counter_number;
+    const myActiveQueue = queues.find(x => x.counter_number === currentCounter.counter_number && ['called','recalled','in_progress'].includes(x.status));
+    const lockedMsg = (icon, who) => `<div class="no-queue" style="padding:20px;">${icon} คิวนี้ดำเนินการโดย<br><strong>${who}</strong><br>คุณไม่สามารถดำเนินการได้</div>`;
+
+    let btns = '';
+    if (q.status === 'waiting') {
+      btns = myActiveQueue
+        ? `<div class="no-queue" style="padding:20px;grid-column:span 2;">⚠️ มีคิว <strong>${myActiveQueue.queue_number}</strong> อยู่แล้ว<br>กรุณาให้บริการเสร็จก่อน</div>`
+        : `<button class="btn-action btn-call" onclick="callQueue(${q.queue_id})">📢 เรียกคิว</button>
+           <button class="btn-action btn-cancel" onclick="cancelQueue(${q.queue_id})">❌ ยกเลิกคิว</button>`;
+    } else if (['called','recalled'].includes(q.status)) {
+      btns = isMyQueue
+        ? `<button class="btn-action btn-start"  onclick="startService(${q.queue_id})">▶️ เริ่มบริการ</button>
+           <button class="btn-action btn-recall" onclick="recallQueue(${q.queue_id})">🔁 เรียกซ้ำ</button>
+           <button class="btn-action btn-cancel" onclick="cancelQueue(${q.queue_id})">❌ ยกเลิกคิว</button>`
+        : lockedMsg('🔒', q.counter_name || 'เคาน์เตอร์ '+q.counter_number);
+    } else if (q.status === 'in_progress') {
+      btns = isMyQueue
+        ? `<button class="btn-action btn-hold"     onclick="holdQueue(${q.queue_id})">⏸️ พักคิว</button>
+           <button class="btn-action btn-transfer" onclick="openTransferModal(${q.queue_id},'${q.queue_number}')">🔄 โอนคิว</button>
+           <button class="btn-action btn-complete" onclick="completeService(${q.queue_id})">✅ เสร็จสิ้น</button>`
+        : lockedMsg('🔒', q.counter_name || 'เคาน์เตอร์ '+q.counter_number);
+    } else if (q.status === 'on_hold') {
+      btns = isMyQueue
+        ? `<button class="btn-action btn-resume"   onclick="resumeQueue(${q.queue_id})"               style="grid-column:span 2;">▶️ กลับมาให้บริการต่อ</button>
+           <button class="btn-action btn-transfer" onclick="openTransferModal(${q.queue_id},'${q.queue_number}')" style="grid-column:span 2;">🔄 โอนคิวไปเคาน์เตอร์อื่น</button>`
+        : lockedMsg('⏸️', q.counter_name || 'เคาน์เตอร์ '+q.counter_number);
+    }
+
+    $('main-panel').innerHTML = `
+      <div class="queue-detail">
+        <div class="detail-header">
+          <div class="detail-queue-number">${q.queue_number}</div>
+          <span class="detail-status status-${q.status}">${getStatusText(q.status)}</span>
+        </div>
+        <div class="detail-info">
+          <div class="info-row"><span class="info-label">หมวดหมู่:</span><span class="info-value">${q.category_name}</span></div>
+          <div class="info-row"><span class="info-label">บริการ:</span><span class="info-value">${q.service_name}</span></div>
+          <div class="info-row"><span class="info-label">เวลารอ:</span><span class="info-value">${q.waiting_time} นาที</span></div>
+          <div class="info-row"><span class="info-label">ความสำคัญ:</span><span class="info-value">${q.priority_text}</span></div>
+          ${q.counter_number ? `<div class="info-row"><span class="info-label">เคาน์เตอร์:</span><span class="info-value">${q.counter_name||'เคาน์เตอร์ '+q.counter_number}</span></div>` : ''}
+          ${q.customer_phone ? `<div class="info-row"><span class="info-label">เบอร์โทร:</span><span class="info-value">${q.customer_phone}</span></div>` : ''}
+        </div>
+        <div class="action-buttons">${btns}</div>
+      </div>`;
+  }
+
+  // ── Queue actions ─────────────────────────────────────────────────
+  async function callQueue(id) {
+    if (!confirm('ต้องการเรียกคิวนี้หรือไม่?')) return;
+    const data = await post(`${API_URL}/api/queues/${id}/call`, { counter_id: currentCounter.counter_id, staff_id: currentStaff.staff_id }).then(r => r.json());
+    if (data.success) { alert(`เรียกคิว ${data.queue.queue_number} สำเร็จ`); loadQueues(); }
+    else alert('เกิดข้อผิดพลาด: ' + (data.message || data.error));
+  }
+
+  async function cancelQueue(id) {
+    const reason = prompt('เหตุผลในการยกเลิก:');
+    if (!reason) return;
+    const data = await put(`${API_URL}/api/queues/${id}/cancel`, { staff_id: currentStaff.staff_id, cancellation_reason: reason }).then(r => r.json());
+    if (data.success) { alert('ยกเลิกคิวสำเร็จ'); selectedQueue = null; loadQueues(); $('main-panel').innerHTML = EMPTY_STATE('📋'); }
+    else alert('เกิดข้อผิดพลาด: ' + data.error);
+  }
+
+  async function startService(id) {
+    if (!confirm('เริ่มให้บริการคิวนี้หรือไม่?')) return;
+    const data = await put(`${API_URL}/api/queues/${id}/start`, { staff_id: currentStaff.staff_id }).then(r => r.json());
+    if (data.success) { loadQueues(); if (selectedQueue?.queue_id === id) { selectedQueue.status = 'in_progress'; showQueueDetail(selectedQueue); } }
+    else alert('เกิดข้อผิดพลาด: ' + data.error);
+  }
+
+  async function recallQueue(id) {
+    if (!confirm('เรียกคิวนี้ซ้ำหรือไม่?')) return;
+    const data = await post(`${API_URL}/api/queues/${id}/recall`, { staff_id: currentStaff.staff_id }).then(r => r.json());
+    if (data.success) { alert(`เรียกซ้ำ (ครั้งที่ ${data.queue.recall_count})`); loadQueues(); }
+    else alert('เกิดข้อผิดพลาด: ' + data.error);
+  }
+
+  async function holdQueue(id) {
+    const reason = prompt('เหตุผลในการพักคิว:');
+    if (!reason) return;
+    const data = await put(`${API_URL}/api/queues/${id}/hold`, { staff_id: currentStaff.staff_id, hold_reason: reason }).then(r => r.json());
+    if (data.success) loadQueues();
+    else alert('เกิดข้อผิดพลาด: ' + data.error);
+  }
+
+  async function resumeQueue(id) {
+    if (!confirm('กลับมาให้บริการต่อหรือไม่?')) return;
+    const data = await post(`${API_URL}/api/queues/${id}/resume`, { staff_id: currentStaff.staff_id, counter_id: currentCounter.counter_id }).then(r => r.json());
+    if (data.success) { loadQueues(); if (selectedQueue?.queue_id === id) { selectedQueue.status = 'in_progress'; showQueueDetail(selectedQueue); } }
+    else alert('เกิดข้อผิดพลาด: ' + data.error);
+  }
+
+  async function completeService(id) {
+    if (!confirm('ยืนยันเสร็จสิ้นการให้บริการ?')) return;
+    const notes = prompt('บันทึกเพิ่มเติม (ถ้ามี):');
+    const data  = await put(`${API_URL}/api/queues/${id}/complete`, { staff_id: currentStaff.staff_id, service_notes: notes || '' }).then(r => r.json());
+    if (data.success) { selectedQueue = null; loadQueues(); $('main-panel').innerHTML = EMPTY_STATE('✅'); }
+    else alert('เกิดข้อผิดพลาด: ' + data.error);
+  }
+
+  // ── Quick call ────────────────────────────────────────────────────
+  function getWaitingForCounter() {
+    const prefix = currentCounter.counter_number.replace(/\d+$/, '');
+    return queues
+      .filter(q => {
+        if (q.status !== 'waiting') return false;
+        const qp = (q.queue_prefix || q.queue_number.replace(/\d+$/, '')).trim();
+        return qp === prefix || (q.counter_id && String(q.counter_id) === String(currentCounter.counter_id));
+      })
+      .sort((a, b) => b.priority - a.priority || new Date(a.created_at) - new Date(b.created_at));
+  }
+
+  function updateQuickCallButton() {
+    const next = getWaitingForCounter()[0];
+    const bar  = $('quick-call-bar');
+    bar.classList.toggle('show', !!next);
+    if (next) $('next-queue-number').textContent = next.queue_number;
+  }
+
+  async function callNextWaitingQueue() {
+    const active = queues.find(q => q.counter_number === currentCounter.counter_number && ['called','recalled','in_progress'].includes(q.status));
+    if (active) { alert(`❌ มีคิว ${active.queue_number} อยู่แล้ว`); return; }
+
+    const next = getWaitingForCounter()[0];
+    if (!next) { alert('ไม่มีคิวที่รอเรียก'); return; }
+    if (!confirm(`ต้องการเรียกคิว ${next.queue_number}?`)) return;
+
+    const data = await post(`${API_URL}/api/queues/${next.queue_id}/call`, { counter_id: currentCounter.counter_id, staff_id: currentStaff.staff_id }).then(r => r.json());
+    if (data.success) { alert(`เรียกคิว ${data.queue.queue_number} สำเร็จ`); loadQueues(); }
+    else alert('เกิดข้อผิดพลาด: ' + (data.message || data.error));
+  }
+
+  // ── Transfer Modal ────────────────────────────────────────────────
+  async function openTransferModal(queueId, queueNumber) {
+    transferringQueue = queueId;
+    $('transfer-queue-number').textContent = queueNumber;
+
+    try {
+      const [cRes, catRes] = await Promise.all([
+        fetch(`${API_URL}/api/counters?shop_id=${SHOP_ID}`),
+        fetch(`${API_URL}/api/kiosk/categories?shop_id=${SHOP_ID}&lang=th`),
+      ]);
+      const cData   = await cRes.json();
+      const catData = await catRes.json();
+
+      if (cData.success) {
+        const sel = $('transfer-counter');
+        sel.innerHTML = '<option value="">-- เลือกเคาน์เตอร์ --</option>';
+        const available = cData.counters.filter(c => String(c.counter_id) !== String(currentCounter.counter_id));
+        if (!available.length) { alert('ไม่มีเคาน์เตอร์อื่น'); closeTransferModal(); return; }
+
+        available.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.counter_id;
+          opt.dataset.counterName = c.counter_name;
+          opt.disabled = c.counter_status === 'offline';
+          const emoji = c.counter_status === 'offline' ? '⚫' : c.counter_status === 'paused' ? '☕' : (c.current_queue_id || c.counter_status === 'busy') ? '🟡' : '🟢';
+          const label = c.counter_status === 'offline' ? 'ปิด' : c.counter_status === 'paused' ? 'พักชั่วคราว' : (c.current_queue_id || c.counter_status === 'busy') ? 'มีคิวอยู่' : 'ว่าง';
+          opt.textContent = `${emoji} ${c.counter_name} - ${label}`;
+          sel.appendChild(opt);
+        });
+      }
+
+      if (catData.success) {
+        const sel = $('transfer-category');
+        sel.innerHTML = '<option value="">-- เลือกประเภทบริการ --</option>';
+        catData.categories.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.category_id; opt.textContent = c.category_name;
+          sel.appendChild(opt);
+        });
+        $('transfer-service-group').style.display = 'block';
+      }
+    } catch { alert('โหลดข้อมูลไม่สำเร็จ'); closeTransferModal(); return; }
+
+    $('transfer-modal').classList.add('active');
+  }
+
+  async function loadTransferServices() {
+    const catId = $('transfer-category').value;
+    if (!catId) { $('transfer-service-detail-group').style.display = 'none'; return; }
+
+    const data = await fetch(`${API_URL}/api/kiosk/services?category_id=${catId}&shop_id=${SHOP_ID}&lang=th`).then(r => r.json());
+    if (data.success) {
+      const sel = $('transfer-service');
+      sel.innerHTML = '<option value="">-- เลือกบริการ --</option>';
+      data.services.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.service_id; opt.textContent = s.service_name;
+        sel.appendChild(opt);
+      });
+      $('transfer-service-detail-group').style.display = 'block';
+    }
+  }
+
+  function closeTransferModal() {
+    $('transfer-modal').classList.remove('active');
+    transferringQueue = null;
+    ['transfer-counter','transfer-category','transfer-service'].forEach(id => $(id).value = '');
+    ['transfer-service-group','transfer-service-detail-group'].forEach(id => $(id).style.display = 'none');
+  }
+
+  async function confirmTransfer() {
+    const cid = $('transfer-counter').value;
+    const kid = $('transfer-category').value;
+    const sid = $('transfer-service').value;
+    if (!cid) { alert('กรุณาเลือกเคาน์เตอร์ปลายทาง'); return; }
+    if (!kid) { alert('กรุณาเลือกประเภทบริการใหม่'); return; }
+    if (!sid) { alert('กรุณาเลือกบริการใหม่'); return; }
+
+    const data = await post(`${API_URL}/api/queues/${transferringQueue}/transfer`, { new_counter_id: cid, new_category_id: kid, new_service_id: sid, new_staff_id: currentStaff.staff_id }).then(r => r.json());
+    if (data.success) {
+      alert(`โอนคิว ${data.queue.queue_number} สำเร็จ → ${data.queue.transfer_to.counter_name}`);
+      closeTransferModal(); selectedQueue = null; loadQueues();
+      $('main-panel').innerHTML = EMPTY_STATE('✅');
+    } else alert('เกิดข้อผิดพลาด: ' + (data.message || data.error));
+  }
+
+  document.addEventListener('click', e => { if (e.target === $('transfer-modal')) closeTransferModal(); });
+
+  // ── Pause ─────────────────────────────────────────────────────────
+  async function togglePause() {
+    if (!isPaused) {
+      const reason = prompt('เหตุผลการพัก เช่น พักกินข้าว:');
+      if (!reason) return;
+      const data = await post(`${API_URL}/api/counters/${currentCounter.counter_id}/pause`, { reason }).then(r => r.json());
+      if (data.success) {
+        isPaused = true;
+        $('btn-pause').textContent = '✅ เปิดรับคิว'; $('btn-pause').classList.add('paused');
+        $('pause-reason-text').textContent = reason; $('pause-banner').classList.add('show');
+      } else alert('ไม่สามารถพักได้: ' + data.error);
+    } else {
+      const data = await post(`${API_URL}/api/counters/${currentCounter.counter_id}/unpause`, {}).then(r => r.json());
+      if (data.success) {
+        isPaused = false;
+        $('btn-pause').textContent = '☕ พักชั่วคราว'; $('btn-pause').classList.remove('paused');
+        $('pause-banner').classList.remove('show');
+      } else alert('เกิดข้อผิดพลาด: ' + data.error);
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
+  window.onload = () => {
+    loadCounters();
+    const session = localStorage.getItem('staff_session');
+    if (session) {
+      const d = JSON.parse(session);
+      currentStaff = d.staff; currentCounter = d.counter;
+      showDashboard();
+    }
+  };
+</script>
+</body>
+</html>

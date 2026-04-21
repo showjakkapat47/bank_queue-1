@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Dashboard - ระบบคิวธนาคาร</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f5f7fa;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      padding: 20px 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      color: #333;
+    }
+
+    .date-filter {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .date-filter select,
+    .date-filter input {
+      padding: 10px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .btn-refresh {
+      background: #138853;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn-refresh:hover {
+      background: #0d6b3f;
+    }
+
+    .btn-export {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .btn-export:hover {
+      background: #2980b9;
+    }
+
+    .btn-export-pdf {
+      background: #e74c3c;
+    }
+
+    .btn-export-pdf:hover {
+      background: #c0392b;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px 40px;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 100%;
+    }
+
+    .stat-card.blue::before { background: #3498db; }
+    .stat-card.green::before { background: #27ae60; }
+    .stat-card.orange::before { background: #f39c12; }
+    .stat-card.red::before { background: #e74c3c; }
+    .stat-card.purple::before { background: #9b59b6; }
+
+    .stat-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .stat-change {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stat-change.up {
+      color: #27ae60;
+    }
+
+    .stat-change.down {
+      color: #e74c3c;
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .chart-card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    .chart-card h3 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Tables */
+    .table-card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      margin-bottom: 30px;
+    }
+
+    .table-card h3 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #333;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      color: #666;
+    }
+
+    tr:hover {
+      background: #f8f9fa;
+    }
+
+    .progress-bar {
+      background: #e0e0e0;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #138853;
+      transition: width 0.3s;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge.excellent { background: #d4edda; color: #155724; }
+    .badge.good { background: #d1ecf1; color: #0c5460; }
+    .badge.average { background: #fff3cd; color: #856404; }
+    .badge.poor { background: #f8d7da; color: #721c24; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 50px;
+      color: #999;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>📊 Analytics Dashboard</h1>
+    <div class="date-filter">
+      <select id="period" onchange="loadAnalytics()">
+        <option value="today">วันนี้</option>
+        <option value="yesterday">เมื่อวาน</option>
+        <option value="week">สัปดาห์นี้</option>
+        <option value="month" selected>เดือนนี้</option>
+        <option value="custom">กำหนดเอง</option>
+      </select>
+      <input type="date" id="start-date" style="display: none;">
+      <input type="date" id="end-date" style="display: none;">
+      <button class="btn-refresh" onclick="loadAnalytics()">🔄 รีเฟรช</button>
+      <button class="btn-export" onclick="exportExcel()">📊 Export Excel</button>
+      <button class="btn-export btn-export-pdf" onclick="exportPDF()">📄 Export PDF</button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="container">
+    <!-- Stats Overview -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="loading">กำลังโหลดข้อมูล...</div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>📈 กราฟคิวรายวัน</h3>
+        <div class="chart-container">
+          <canvas id="dailyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>🥧 สัดส่วนสถานะคิว</h3>
+        <div class="chart-container">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hourly Distribution -->
+    <div class="chart-card">
+      <h3>⏰ การกระจายตัวของคิวตามเวลา (Peak Hours)</h3>
+      <div class="chart-container">
+        <canvas id="hourlyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Service Performance -->
+    <div class="table-card">
+      <h3>🎯 ประสิทธิภาพตามประเภทบริการ</h3>
+      <table id="service-table">
+        <thead>
+          <tr>
+            <th>ประเภทบริการ</th>
+            <th>จำนวนคิว</th>
+            <th>เวลารอเฉลี่ย (นาที)</th>
+            <th>เวลาให้บริการเฉลี่ย (นาที)</th>
+            <th>อัตราความสำเร็จ</th>
+            <th>คะแนน</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6" class="loading">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Staff Performance -->
+    <div class="table-card">
+      <h3>👥 ประสิทธิภาพพนักงาน</h3>
+      <table id="staff-table">
+        <thead>
+          <tr>
+            <th>พนักงาน</th>
+            <th>จำนวนคิวที่รับ</th>
+            <th>เวลาให้บริการเฉลี่ย (นาที)</th>
+            <th>คิวที่เสร็จสิ้น</th>
+            <th>ประสิทธิภาพ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5" class="loading">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Counter Performance -->
+    <div class="table-card">
+      <h3>🪟 ประสิทธิภาพเคาน์เตอร์</h3>
+      <table id="counter-table">
+        <thead>
+          <tr>
+            <th>เคาน์เตอร์</th>
+            <th>จำนวนคิวที่รับ</th>
+            <th>เวลาเปิดให้บริการ (ชม.)</th>
+            <th>Utilization Rate</th>
+            <th>สถานะ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5" class="loading">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+    const SHOP_ID = 1;
+
+    let dailyChart, statusChart, hourlyChart;
+
+    // เมื่อเปลี่ยน period
+    document.getElementById('period').addEventListener('change', function() {
+      const isCustom = this.value === 'custom';
+      document.getElementById('start-date').style.display = isCustom ? 'block' : 'none';
+      document.getElementById('end-date').style.display = isCustom ? 'block' : 'none';
+    });
+
+    // โหลด Analytics
+    async function loadAnalytics() {
+      const period = document.getElementById('period').value;
+      const startDate = document.getElementById('start-date').value;
+      const endDate = document.getElementById('end-date').value;
+
+      try {
+        const params = new URLSearchParams({
+          shop_id: SHOP_ID,
+          period: period
+        });
+
+        if (period === 'custom' && startDate && endDate) {
+          params.append('start_date', startDate);
+          params.append('end_date', endDate);
+        }
+
+        const response = await fetch(`${API_URL}/api/analytics?${params}`);
+        const data = await response.json();
+
+        if (data.success) {
+          analyticsData = data; // ✅ เก็บข้อมูลไว้สำหรับ export
+          renderStats(data.overview);
+          renderCharts(data);
+          renderTables(data);
+        }
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      }
+    }
+
+    // แสดง Stats Cards
+    function renderStats(overview) {
+      const grid = document.getElementById('stats-grid');
+      
+      grid.innerHTML = `
+        <div class="stat-card blue">
+          <div class="stat-icon">📋</div>
+          <div class="stat-value">${overview.total_queues}</div>
+          <div class="stat-label">คิวทั้งหมด</div>
+          <div class="stat-change ${overview.queue_change >= 0 ? 'up' : 'down'}">
+            ${overview.queue_change >= 0 ? '↑' : '↓'} ${Math.abs(overview.queue_change)}%
+          </div>
+        </div>
+
+        <div class="stat-card green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value">${overview.completed_queues}</div>
+          <div class="stat-label">คิวที่เสร็จสิ้น</div>
+          <div class="stat-change up">
+            ${overview.completion_rate}% Success Rate
+          </div>
+        </div>
+
+        <div class="stat-card orange">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-value">${overview.avg_wait_time}</div>
+          <div class="stat-label">เวลารอเฉลี่ย (นาที)</div>
+          <div class="stat-change ${overview.wait_time_change <= 0 ? 'up' : 'down'}">
+            ${overview.wait_time_change <= 0 ? '↓' : '↑'} ${Math.abs(overview.wait_time_change)}%
+          </div>
+        </div>
+
+        <div class="stat-card red">
+          <div class="stat-icon">❌</div>
+          <div class="stat-value">${overview.cancelled_queues}</div>
+          <div class="stat-label">คิวที่ยกเลิก</div>
+          <div class="stat-change ${overview.cancel_rate <= 10 ? 'up' : 'down'}">
+            ${overview.cancel_rate}% Cancel Rate
+          </div>
+        </div>
+
+        <div class="stat-card purple">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-value">${overview.avg_service_time}</div>
+          <div class="stat-label">เวลาให้บริการเฉลี่ย (นาที)</div>
+        </div>
+
+        <div class="stat-card blue">
+          <div class="stat-icon">👥</div>
+          <div class="stat-value">${overview.active_staff}</div>
+          <div class="stat-label">พนักงานที่ทำงาน</div>
+        </div>
+
+        <div class="stat-card green">
+          <div class="stat-icon">🪟</div>
+          <div class="stat-value">${overview.active_counters}</div>
+          <div class="stat-label">เคาน์เตอร์ที่เปิด</div>
+        </div>
+
+        <div class="stat-card orange">
+          <div class="stat-icon">⏰</div>
+          <div class="stat-value">${overview.peak_hour}</div>
+          <div class="stat-label">Peak Hour</div>
+        </div>
+      `;
+    }
+
+    // แสดงกราฟ
+    function renderCharts(data) {
+      // กราฟรายวัน
+      if (dailyChart) dailyChart.destroy();
+      const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+      dailyChart = new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+          labels: data.daily.labels,
+          datasets: [{
+            label: 'จำนวนคิว',
+            data: data.daily.values,
+            borderColor: '#138853',
+            backgroundColor: 'rgba(19, 136, 83, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      // กราฟสถานะ
+      if (statusChart) statusChart.destroy();
+      const statusCtx = document.getElementById('statusChart').getContext('2d');
+      statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['เสร็จสิ้น', 'ยกเลิก', 'รอเรียก'],
+          datasets: [{
+            data: [
+              data.status.completed,
+              data.status.cancelled,
+              data.status.waiting
+            ],
+            backgroundColor: ['#27ae60', '#e74c3c', '#f39c12']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+
+      // กราฟ Hourly
+      if (hourlyChart) hourlyChart.destroy();
+      const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+      hourlyChart = new Chart(hourlyCtx, {
+        type: 'bar',
+        data: {
+          labels: data.hourly.labels,
+          datasets: [{
+            label: 'จำนวนคิว',
+            data: data.hourly.values,
+            backgroundColor: '#3498db'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // แสดงตาราง
+    function renderTables(data) {
+      // ตารางบริการ
+      const serviceTable = document.getElementById('service-table').querySelector('tbody');
+      serviceTable.innerHTML = data.services.map(s => `
+        <tr>
+          <td><strong>${s.service_name}</strong></td>
+          <td>${s.total_queues}</td>
+          <td>${s.avg_wait_time}</td>
+          <td>${s.avg_service_time}</td>
+          <td>
+            <div>${s.success_rate}%</div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${s.success_rate}%"></div>
+            </div>
+          </td>
+          <td><span class="badge ${s.rating_class}">${s.rating}</span></td>
+        </tr>
+      `).join('');
+
+      // ตารางพนักงาน
+      const staffTable = document.getElementById('staff-table').querySelector('tbody');
+      staffTable.innerHTML = data.staff.map(s => `
+        <tr>
+          <td><strong>${s.staff_name}</strong></td>
+          <td>${s.total_queues}</td>
+          <td>${s.avg_service_time}</td>
+          <td>${s.completed_queues}</td>
+          <td>
+            <div>${s.efficiency}%</div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${s.efficiency}%"></div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      // ตารางเคาน์เตอร์
+      const counterTable = document.getElementById('counter-table').querySelector('tbody');
+      counterTable.innerHTML = data.counters.map(c => `
+        <tr>
+          <td><strong>${c.counter_name}</strong></td>
+          <td>${c.total_queues}</td>
+          <td>${c.active_hours}</td>
+          <td>
+            <div>${c.utilization}%</div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${c.utilization}%"></div>
+            </div>
+          </td>
+          <td><span class="badge ${c.status_class}">${c.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // เริ่มต้น
+    window.onload = function() {
+      loadAnalytics();
+      setInterval(loadAnalytics, 60000); // รีเฟรชทุก 1 นาที
+    };
+
+    let analyticsData = null; // เก็บข้อมูลล่าสุด
+
+    async function exportExcel() {
+      if (!analyticsData) {
+        alert('กรุณารอข้อมูลโหลดเสร็จก่อน');
+        return;
+      }
+
+      const period = document.getElementById('period').value;
+      const periodText = {
+        'today': 'วันนี้',
+        'yesterday': 'เมื่อวาน',
+        'week': 'สัปดาห์นี้',
+        'month': 'เดือนนี้',
+        'custom': 'กำหนดเอง'
+      }[period] || 'เดือนนี้';
+
+      // สร้าง Workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Overview
+      const overviewData = [
+        ['📊 รายงานสรุปคิวธนาคาร'],
+        [`ช่วงเวลา: ${periodText}`],
+        [`วันที่สร้างรายงาน: ${new Date().toLocaleString('th-TH')}`],
+        [],
+        ['สถิติภาพรวม', 'ค่า'],
+        ['คิวทั้งหมด', analyticsData.overview.total_queues],
+        ['คิวที่เสร็จสิ้น', analyticsData.overview.completed_queues],
+        ['คิวที่ยกเลิก', analyticsData.overview.cancelled_queues],
+        ['เวลารอเฉลี่ย (นาที)', analyticsData.overview.avg_wait_time],
+        ['เวลาให้บริการเฉลี่ย (นาที)', analyticsData.overview.avg_service_time],
+        ['อัตราความสำเร็จ (%)', analyticsData.overview.completion_rate],
+        ['อัตราการยกเลิก (%)', analyticsData.overview.cancel_rate],
+        ['พนักงานที่ทำงาน', analyticsData.overview.active_staff],
+        ['เคาน์เตอร์ที่เปิด', analyticsData.overview.active_counters],
+        ['Peak Hour', analyticsData.overview.peak_hour]
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(overviewData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'ภาพรวม');
+
+      // Sheet 2: Service Performance
+      const serviceHeader = [['ประเภทบริการ', 'จำนวนคิว', 'เวลารอเฉลี่ย (นาที)', 'เวลาให้บริการเฉลี่ย (นาที)', 'อัตราความสำเร็จ (%)', 'คะแนน']];
+      const serviceRows = analyticsData.services.map(s => [
+        s.service_name,
+        s.total_queues,
+        s.avg_wait_time,
+        s.avg_service_time,
+        s.success_rate,
+        s.rating
+      ]);
+      const ws2 = XLSX.utils.aoa_to_sheet([...serviceHeader, ...serviceRows]);
+      XLSX.utils.book_append_sheet(wb, ws2, 'ประสิทธิภาพบริการ');
+
+      // Sheet 3: Staff Performance
+      const staffHeader = [['พนักงาน', 'จำนวนคิว', 'เวลาให้บริการเฉลี่ย (นาที)', 'คิวที่เสร็จสิ้น', 'ประสิทธิภาพ (%)']];
+      const staffRows = analyticsData.staff.map(s => [
+        s.staff_name,
+        s.total_queues,
+        s.avg_service_time,
+        s.completed_queues,
+        s.efficiency
+      ]);
+      const ws3 = XLSX.utils.aoa_to_sheet([...staffHeader, ...staffRows]);
+      XLSX.utils.book_append_sheet(wb, ws3, 'ประสิทธิภาพพนักงาน');
+
+      // Sheet 4: Counter Performance
+      const counterHeader = [['เคาน์เตอร์', 'จำนวนคิว', 'เวลาเปิดให้บริการ (ชม.)', 'Utilization Rate (%)', 'สถานะ']];
+      const counterRows = analyticsData.counters.map(c => [
+        c.counter_name,
+        c.total_queues,
+        c.active_hours,
+        c.utilization,
+        c.status
+      ]);
+      const ws4 = XLSX.utils.aoa_to_sheet([...counterHeader, ...counterRows]);
+      XLSX.utils.book_append_sheet(wb, ws4, 'ประสิทธิภาพเคาน์เตอร์');
+
+      // Sheet 5: Daily Trend
+      const dailyHeader = [['วันที่', 'จำนวนคิว']];
+      const dailyRows = analyticsData.daily.labels.map((label, i) => [
+        label,
+        analyticsData.daily.values[i]
+      ]);
+      const ws5 = XLSX.utils.aoa_to_sheet([...dailyHeader, ...dailyRows]);
+      XLSX.utils.book_append_sheet(wb, ws5, 'แนวโน้มรายวัน');
+
+      // Sheet 6: Hourly Distribution
+      const hourlyHeader = [['ชั่วโมง', 'จำนวนคิว']];
+      const hourlyRows = analyticsData.hourly.labels.map((label, i) => [
+        label,
+        analyticsData.hourly.values[i]
+      ]);
+      const ws6 = XLSX.utils.aoa_to_sheet([...hourlyHeader, ...hourlyRows]);
+      XLSX.utils.book_append_sheet(wb, ws6, 'การกระจายตามเวลา');
+
+      // Download
+      const fileName = `Analytics_Report_${periodText}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      console.log('✅ Excel exported:', fileName);
+    }
+    
+    async function exportPDF() {
+      if (!analyticsData) {
+        alert('กรุณารอข้อมูลโหลดเสร็จก่อน');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const period = document.getElementById('period').value;
+      const periodText = {
+        'today': 'วันนี้',
+        'yesterday': 'เมื่อวาน',
+        'week': 'สัปดาห์นี้',
+        'month': 'เดือนนี้',
+        'custom': 'กำหนดเอง'
+      }[period] || 'เดือนนี้';
+
+      let yPos = 20;
+
+      // หัวรายงาน
+      pdf.setFontSize(18);
+      pdf.text('Analytics Report - Queue Management System', 105, yPos, { align: 'center' });
+      yPos += 10;
+
+      pdf.setFontSize(12);
+      pdf.text(`Period: ${periodText}`, 105, yPos, { align: 'center' });
+      yPos += 7;
+
+      pdf.setFontSize(10);
+      pdf.text(`Generated: ${new Date().toLocaleString('en-US')}`, 105, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Overview Stats
+      pdf.setFontSize(14);
+      pdf.text('Overview Statistics', 20, yPos);
+      yPos += 8;
+
+      pdf.setFontSize(10);
+      const overview = [
+        `Total Queues: ${analyticsData.overview.total_queues}`,
+        `Completed: ${analyticsData.overview.completed_queues}`,
+        `Cancelled: ${analyticsData.overview.cancelled_queues}`,
+        `Avg Wait Time: ${analyticsData.overview.avg_wait_time} min`,
+        `Avg Service Time: ${analyticsData.overview.avg_service_time} min`,
+        `Success Rate: ${analyticsData.overview.completion_rate}%`,
+        `Cancel Rate: ${analyticsData.overview.cancel_rate}%`,
+        `Active Staff: ${analyticsData.overview.active_staff}`,
+        `Active Counters: ${analyticsData.overview.active_counters}`,
+        `Peak Hour: ${analyticsData.overview.peak_hour}`
+      ];
+
+      overview.forEach(line => {
+        pdf.text(line, 20, yPos);
+        yPos += 6;
+      });
+
+      yPos += 10;
+
+      // Service Performance Table
+      if (yPos > 250) {
+        pdf.addPage();
+        yPos = 20;
+      }
+
+      pdf.setFontSize(14);
+      pdf.text('Service Performance', 20, yPos);
+      yPos += 8;
+
+      pdf.setFontSize(9);
+      const serviceTableY = yPos;
+      
+      // Headers
+      pdf.text('Service', 20, yPos);
+      pdf.text('Queues', 80, yPos);
+      pdf.text('Wait (min)', 110, yPos);
+      pdf.text('Service (min)', 140, yPos);
+      pdf.text('Success %', 175, yPos);
+      yPos += 6;
+
+      // Rows
+      analyticsData.services.forEach(s => {
+        if (yPos > 280) {
+          pdf.addPage();
+          yPos = 20;
+        }
+        pdf.text(s.service_name.substring(0, 30), 20, yPos);
+        pdf.text(s.total_queues.toString(), 80, yPos);
+        pdf.text(s.avg_wait_time.toString(), 110, yPos);
+        pdf.text(s.avg_service_time.toString(), 140, yPos);
+        pdf.text(s.success_rate.toString(), 175, yPos);
+        yPos += 6;
+      });
+
+      yPos += 10;
+
+      // Staff Performance
+      if (yPos > 250) {
+        pdf.addPage();
+        yPos = 20;
+      }
+
+      pdf.setFontSize(14);
+      pdf.text('Staff Performance', 20, yPos);
+      yPos += 8;
+
+      pdf.setFontSize(9);
+      pdf.text('Staff Name', 20, yPos);
+      pdf.text('Queues', 80, yPos);
+      pdf.text('Avg Time (min)', 120, yPos);
+      pdf.text('Efficiency %', 165, yPos);
+      yPos += 6;
+
+      analyticsData.staff.forEach(s => {
+        if (yPos > 280) {
+          pdf.addPage();
+          yPos = 20;
+        }
+        pdf.text(s.staff_name.substring(0, 30), 20, yPos);
+        pdf.text(s.total_queues.toString(), 80, yPos);
+        pdf.text(s.avg_service_time.toString(), 120, yPos);
+        pdf.text(s.efficiency.toString(), 165, yPos);
+        yPos += 6;
+      });
+
+      // Capture Charts as Images
+      pdf.addPage();
+      yPos = 20;
+
+      pdf.setFontSize(14);
+      pdf.text('Daily Trend Chart', 105, yPos, { align: 'center' });
+      yPos += 10;
+
+      try {
+        const dailyCanvas = document.getElementById('dailyChart');
+        const dailyImg = dailyCanvas.toDataURL('image/png');
+        pdf.addImage(dailyImg, 'PNG', 20, yPos, 170, 80);
+        yPos += 90;
+
+        pdf.text('Status Distribution', 105, yPos, { align: 'center' });
+        yPos += 10;
+
+        const statusCanvas = document.getElementById('statusChart');
+        const statusImg = statusCanvas.toDataURL('image/png');
+        pdf.addImage(statusImg, 'PNG', 60, yPos, 90, 80);
+      } catch (error) {
+        console.error('Error capturing charts:', error);
+      }
+
+      // Download
+      const fileName = `Analytics_Report_${periodText}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+      console.log('✅ PDF exported:', fileName);
+    }
+  </script>
+</body>
+</html>

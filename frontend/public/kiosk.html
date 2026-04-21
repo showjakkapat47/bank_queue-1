@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>kiosk</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+    :root{
+      --g1:#1fad5e;--g2:#0f7a40;--g3:#085c2e;
+      --white:rgba(255,255,255,0.95);--pill:rgba(255,255,255,0.13);
+    }
+    html,body{width:100%;height:100%;font-family:'Sarabun',sans-serif;overflow:hidden;background:var(--g3);}
+
+    #shell{
+      position:fixed;top:0;left:0;width:100%;
+      display:flex;flex-direction:column;overflow:hidden;
+      background:
+        radial-gradient(ellipse 120% 80% at 20% 0%,#2ec76a 0%,transparent 55%),
+        radial-gradient(ellipse 80% 60% at 80% 100%,#0d6b38 0%,transparent 60%),
+        linear-gradient(160deg,#1a9e52 0%,#0a5c30 100%);
+    }
+    #shell::after{content:'';position:absolute;inset:0;pointer-events:none;
+      background-image:repeating-linear-gradient(135deg,transparent,transparent 48px,rgba(255,255,255,0.025) 48px,rgba(255,255,255,0.025) 49px);}
+
+    #topbar{flex-shrink:0;position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;background:rgba(0,0,0,0.22);border-bottom:1px solid rgba(255,255,255,0.1);gap:10px;}
+    .bank-brand{display:flex;align-items:center;gap:10px;}
+    .bank-icon{width:42px;height:42px;border-radius:10px;background:white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+    .bank-icon i{font-size:22px;color:var(--g2);}
+    .bank-name{color:white;font-size:22px;font-weight:900;letter-spacing:0.5px;text-shadow:0 2px 6px rgba(0,0,0,0.3);}
+    .lang-row{display:flex;gap:8px;}
+    .lang-btn{display:flex;align-items:center;gap:5px;padding:8px 14px;border:2px solid rgba(255,255,255,0.35);background:var(--pill);border-radius:30px;color:white;font-size:14px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all 0.2s;}
+    .lang-btn .flag{font-size:17px;}
+    .lang-btn.active{background:white;color:var(--g2);border-color:white;box-shadow:0 2px 10px rgba(0,0,0,0.2);}
+
+    #title-row{flex-shrink:0;position:relative;z-index:2;text-align:center;padding:16px 20px 10px;}
+    #main-title{color:white;font-size:32px;font-weight:900;text-shadow:0 2px 8px rgba(0,0,0,0.3);letter-spacing:0.3px;}
+
+    #grid-area{flex:1;min-height:0;padding:6px 16px 10px;display:flex;flex-direction:column;position:relative;z-index:2;}
+    #categories-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:12px;}
+
+    .cat-btn{background:rgba(255,255,255,0.92);border:none;border-radius:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px 8px;min-height:0;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.18),inset 0 1px 0 rgba(255,255,255,0.8);transition:transform 0.15s,box-shadow 0.15s,background 0.15s;position:relative;word-break: break-word;}
+    .cat-btn::before{content:'';position:absolute;inset:0;border-radius:18px;background:linear-gradient(145deg,rgba(255,255,255,0.6) 0%,rgba(255,255,255,0) 60%);pointer-events:none;}
+    .cat-btn:active{transform:scale(0.94);box-shadow:0 2px 8px rgba(0,0,0,0.2);background:rgba(255,255,255,0.98);}
+    .cat-icon{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#e8f7ef,#d0f0e0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(19,136,83,0.2);}
+    .cat-icon i{font-size:26px;color:var(--g2);}
+    .cat-label {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1a1a1a;
+  text-align: center;
+  line-height: 1.3;
+  width: 100%;
+  padding: 0 6px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-height: calc(1.3em * 3);  /* จำกัด 3 บรรทัด */
+  overflow: hidden;
+}
+    .loading-grid{grid-column:1/-1;color:rgba(255,255,255,0.75);text-align:center;font-size:18px;display:flex;align-items:center;justify-content:center;gap:10px;}
+
+    #bottom-bar{flex-shrink:0;position:relative;z-index:2;background:rgba(0,0,0,0.3);border-top:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(4px);}
+    #qr-tab{display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;user-select:none;color:white;}
+    .tab-logo{width:30px;height:30px;border-radius:7px;overflow:hidden;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
+    .tab-logo img{width:100%;height:100%;display:block;}
+    .tab-lbl{flex:1;font-size:16px;font-weight:800;}
+    .tab-pill{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;white-space:nowrap;color:rgba(255,255,255,0.9);}
+    .tab-arrow{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:0.8;transition:transform 0.3s;margin-left:4px;}
+    #bottom-bar.open .tab-arrow{transform:rotate(180deg);}
+    #qr-body{max-height:0;overflow:hidden;transition:max-height 0.38s cubic-bezier(0.4,0,0.2,1);display:flex;align-items:center;gap:18px;padding:0 18px;}
+    #bottom-bar.open #qr-body{max-height:150px;padding-bottom:14px;}
+    #line-qr-code{background:white;border-radius:12px;padding:7px;width:116px;height:116px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 18px rgba(0,0,0,0.3);}
+    #line-qr-code canvas,#line-qr-code img{width:102px!important;height:102px!important;}
+    .qr-info{color:white;}
+    .qr-info .qi-title{font-size:17px;font-weight:800;line-height:1.4;margin-bottom:8px;}
+    .qr-info .qi-sub{font-size:13px;opacity:0.85;line-height:2;}
+    .qr-info .qi-sub span{display:block;}
+    .qr-info .qi-sub span::before{content:'✓ ';color:#7dffb0;font-weight:700;}
+
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:100;align-items:center;justify-content:center;padding:20px;}
+    .modal.active{display:flex;}
+    .mbox{background:white;border-radius:24px;padding:28px 22px 22px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;}
+    .mhead{text-align:center;margin-bottom:18px;}
+    .mhead h2{font-size:26px;color:var(--g2);margin-bottom:10px;}
+    .mbadge{display:inline-block;background:var(--g2);color:white;padding:8px 22px;border-radius:12px;font-size:16px;font-weight:800;}
+    .svcs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px;}
+    .svc-card{background:#f7faf8;border:2.5px solid #e0ece5;border-radius:14px;padding:18px 14px;cursor:pointer;transition:all 0.2s;}
+    .svc-card:hover,.svc-card:active{border-color:var(--g2);background:#e8f5ee;transform:translateY(-2px);}
+    .svc-name{font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:4px;}
+    .svc-desc{font-size:13px;color:#666;line-height:1.4;}
+    .btn-back{display:block;margin:0 auto;background:#bbb;color:white;border:none;border-radius:12px;padding:14px 42px;font-size:18px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer;}
+
+    #loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:200;align-items:center;justify-content:center;}
+    #loading-overlay.active{display:flex;}
+    .spinner{border:7px solid rgba(255,255,255,0.25);border-top:7px solid white;border-radius:50%;width:60px;height:60px;animation:spin 0.85s linear infinite;margin:0 auto 16px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #loading-text{color:white;font-size:20px;text-align:center;font-family:'Sarabun',sans-serif;}
+
+    .tbox{background:white;border-radius:24px;padding:30px 24px;max-width:440px;width:100%;text-align:center;}
+    #t-success{font-size:24px;font-weight:900;color:var(--g2);margin-bottom:4px;}
+    #t-num{font-size:96px;font-weight:900;color:var(--g2);line-height:1;margin:10px 0;font-family:'Courier New',monospace;text-shadow:0 4px 12px rgba(15,122,64,0.2);}
+    #t-info{background:#f7faf8;border-radius:14px;padding:14px 18px;margin:14px 0;}
+    .t-row{padding:9px 0;border-bottom:1px solid #e0ece5;font-size:17px;font-weight:700;color:#333;text-align:center;}
+    .t-row:last-child{border-bottom:none;}
+    #t-msg{background:#fff8e1;border:2px solid #ffc107;border-radius:12px;padding:14px;font-size:15px;color:#7a5700;margin:14px 0;line-height:1.6;}
+    #btn-done{background:linear-gradient(135deg,var(--g1),var(--g2));color:white;border:none;border-radius:14px;padding:16px 56px;font-size:22px;font-weight:900;font-family:'Sarabun',sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(15,122,64,0.35);}
+
+    @media print {
+      /* ซ่อนทุกอย่างบนหน้าจอ */
+      body > *:not(#print-ticket) { display: none !important; }
+      #shell, .modal, #loading-overlay { display: none !important; }
+
+      /* รีเซ็ต */
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      @page {
+        size: 80mm auto;   /* กระดาษ thermal 80mm */
+        margin: 0;
+      }
+
+      #print-ticket {
+        display: block !important;
+        width: 80mm;
+        font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
+        color: #000;
+        background: #fff;
+        padding: 4mm 5mm 6mm;
+      }
+
+      /* ─── Header ─── */
+      .pt-header {
+        text-align: center;
+        border-bottom: 2px solid #000;
+        padding-bottom: 3mm;
+        margin-bottom: 3mm;
+      }
+      .pt-bank-name {
+        font-size: 20pt;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+      .pt-branch {
+        font-size: 10pt;
+        margin-top: 1mm;
+      }
+      .pt-date-time {
+        font-size: 9pt;
+        color: #444;
+        margin-top: 1mm;
+      }
+
+      /* ─── Queue Number ─── */
+      .pt-queue-block {
+        text-align: center;
+        padding: 4mm 0;
+        border-bottom: 1px dashed #000;
+        margin-bottom: 3mm;
+      }
+      .pt-queue-label {
+        font-size: 10pt;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+      .pt-queue-number {
+        font-size: 54pt;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 2px;
+        font-family: 'Courier New', monospace;
+      }
+
+      /* ─── Details ─── */
+      .pt-details {
+        border: 1.5px solid #000;
+        border-radius: 2mm;
+        padding: 2mm 3mm;
+        margin-bottom: 3mm;
+      }
+      .pt-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1.5mm 0;
+        border-bottom: 1px solid #ddd;
+        font-size: 10pt;
+        gap: 2mm;
+      }
+      .pt-row:last-child { border-bottom: none; }
+      .pt-row-label {
+        font-weight: 700;
+        white-space: nowrap;
+        min-width: 20mm;
+        color: #333;
+      }
+      .pt-row-value {
+        text-align: right;
+        flex: 1;
+        font-weight: 600;
+      }
+
+      /* ─── Wait Info ─── */
+      .pt-wait-block {
+        text-align: center;
+        background: #f5f5f5;
+        border: 1px solid #ccc;
+        border-radius: 2mm;
+        padding: 2.5mm;
+        margin-bottom: 3mm;
+        font-size: 10pt;
+      }
+      .pt-wait-big {
+        font-size: 18pt;
+        font-weight: 900;
+        display: block;
+        margin-top: 1mm;
+      }
+
+      /* ─── Footer ─── */
+      .pt-footer {
+        text-align: center;
+        border-top: 1px dashed #000;
+        padding-top: 3mm;
+        font-size: 9pt;
+        color: #444;
+        line-height: 1.7;
+      }
+      .pt-footer .pt-thank {
+        font-size: 11pt;
+        font-weight: 800;
+        color: #000;
+        display: block;
+        margin-bottom: 1mm;
+      }
+
+      /* ─── Barcode-style bottom line ─── */
+      .pt-barcode-line {
+        margin-top: 3mm;
+        font-size: 7pt;
+        letter-spacing: 3px;
+        color: #888;
+        font-family: 'Courier New', monospace;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="print-ticket" style="display:none;">
+  <div class="pt-header">
+    <div class="pt-bank-name">🏦 BANK</div>
+    <div class="pt-branch" id="pt-branch">สาขา —</div>
+    <div class="pt-date-time" id="pt-datetime">—</div>
+  </div>
+
+  <div class="pt-queue-block">
+    <div class="pt-queue-label">หมายเลขคิว / QUEUE NO.</div>
+    <div class="pt-queue-number" id="pt-qnum">—</div>
+  </div>
+
+  <div class="pt-details">
+    <div class="pt-row">
+      <span class="pt-row-label">ประเภท</span>
+      <span class="pt-row-value" id="pt-cat">—</span>
+    </div>
+    <div class="pt-row">
+      <span class="pt-row-label">บริการ</span>
+      <span class="pt-row-value" id="pt-svc">—</span>
+    </div>
+  </div>
+
+  <div class="pt-wait-block">
+    คิวรอข้างหน้า
+    <span class="pt-wait-big" id="pt-ahead">0 คิว</span>
+    <span id="pt-esttime" style="font-size:9pt;color:#555;"></span>
+  </div>
+
+  <div class="pt-footer">
+    <span class="pt-thank">ขอบคุณที่ใช้บริการ</span>
+    กรุณาติดตามหน้าจอแสดงผล<br>
+    เมื่อถึงคิว ระบบจะเรียกหมายเลขของท่าน<br>
+    <div class="pt-barcode-line" id="pt-barcode">* * * * * * * *</div>
+  </div>
+</div>
+
+<div id="shell">
+  <div id="topbar">
+    <div class="bank-brand">
+      <div class="bank-icon"><i class="fa-solid fa-building-columns"></i></div>
+      <div class="bank-name">BANK</div>
+    </div>
+    <div class="lang-row">
+      <button class="lang-btn active" onclick="switchLang('th',this)"><span class="flag">🇹🇭</span>ไทย</button>
+      <button class="lang-btn" onclick="switchLang('en',this)"><span class="flag">🇬🇧</span>EN</button>
+      <button class="lang-btn" onclick="switchLang('zh',this)"><span class="flag">🇨🇳</span>中文</button>
+    </div>
+  </div>
+
+  <div id="title-row">
+    <div id="main-title">เลือกประเภทบริการ</div>
+  </div>
+
+  <div id="grid-area">
+    <div id="categories-grid">
+      <div class="loading-grid"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลด...</div>
+    </div>
+  </div>
+
+  <div id="bottom-bar">
+    <div id="qr-tab" onclick="toggleQR()">
+      <div class="tab-logo"><img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/LINE_New_App_Icon_%282020-12%29.png" alt="LINE"></div>
+      <span class="tab-lbl" id="qr-lbl">สแกนรับคิวผ่าน LINE</span>
+      <span class="tab-pill" id="qr-pill">ไม่ต้องรอที่สาขา</span>
+      <span class="tab-arrow">▲</span>
+    </div>
+    <div id="qr-body">
+      <div id="line-qr-code"></div>
+      <div class="qr-info">
+        <div class="qi-title" id="qi-title">สแกน QR รับบัตรคิวผ่าน LINE<br>ไม่ต้องรอที่สาขา</div>
+        <div class="qi-sub">
+          <span id="qs1">ไม่ต้องรอที่สาขา</span>
+          <span id="qs2">มีแจ้งเตือนก่อนถึงคิว</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Services Modal -->
+<div class="modal" id="modal-svc">
+  <div class="mbox">
+    <div class="mhead"><h2 id="m-title">เลือกบริการ</h2><div class="mbadge" id="m-cat"></div></div>
+    <div class="svcs-grid" id="svcs-grid"></div>
+    <button class="btn-back" id="btn-back" onclick="closeModal()">← กลับ</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading-overlay">
+  <div><div class="spinner"></div><div id="loading-text">กำลังสร้างบัตรคิว...</div></div>
+</div>
+
+<!-- Ticket Modal (screen preview) -->
+<div class="modal" id="modal-ticket">
+  <div class="tbox">
+    <div id="t-success">รับบัตรคิวสำเร็จ ✓</div>
+    <div id="t-num">-</div>
+    <div id="t-info"></div>
+    <div id="t-msg">โปรดติดตามหน้าจอแสดงผล<br>เมื่อถึงคิวของท่าน ระบบจะเรียก</div>
+    <button id="btn-done" onclick="closeTicket()">เสร็จสิ้น</button>
+  </div>
+</div>
+
+<script>
+/* ── FIT SCREEN ── */
+function fitScreen(){
+  const h=window.innerHeight, w=window.innerWidth;
+  const shell=document.getElementById('shell');
+  shell.style.height=h+'px'; shell.style.width=w+'px';
+  const topH=document.getElementById('topbar').offsetHeight||70;
+  const titleH=document.getElementById('title-row').offsetHeight||60;
+  const botH=document.getElementById('bottom-bar').offsetHeight||54;
+  const gridH=h-topH-titleH-botH-16;
+  const gridW=w-32;
+  const cols=3;
+  const rows=Math.ceil((document.querySelectorAll('.cat-btn').length||9)/cols);
+  const cellH=(gridH-(rows-1)*12)/rows;
+  const cellW=(gridW-(cols-1)*12)/cols;
+  const iconPx=Math.min(Math.max(Math.min(cellH,cellW)*0.38,48),76);
+  const iFontPx=Math.round(iconPx*0.42);
+  // ใน fitScreen() แก้บรรทัดนี้
+const tFontPx = Math.min(Math.max(Math.min(cellH * 0.15, cellW * 0.16), 11), 16); 
+  document.querySelectorAll('.cat-icon').forEach(el=>{el.style.width=iconPx+'px';el.style.height=iconPx+'px';});
+  document.querySelectorAll('.cat-icon i').forEach(el=>{el.style.fontSize=iFontPx+'px';});
+  document.querySelectorAll('.cat-label').forEach(el=>{el.style.fontSize=tFontPx+'px';});
+  const titleFontPx=Math.min(Math.max(w*0.06,22),36);
+  document.getElementById('main-title').style.fontSize=titleFontPx+'px';
+}
+fitScreen();
+window.addEventListener('resize',fitScreen);
+setTimeout(fitScreen,400); setTimeout(fitScreen,900);
+
+/* ── TRANSLATIONS ── */
+const API_URL=window.location.origin, SHOP_ID=1;
+let selCat=null, lang='th';
+const T={
+  th:{title:'เลือกประเภทบริการ',mSelect:'เลือกบริการ',back:'← กลับ',loading:'กำลังสร้างบัตรคิว...',success:'รับบัตรคิวสำเร็จ ✓',msg:'โปรดติดตามหน้าจอแสดงผล<br>เมื่อถึงคิวของท่าน ระบบจะเรียก',done:'เสร็จสิ้น',qrLbl:'สแกนรับคิวผ่าน LINE',pill:'ไม่ต้องรอที่สาขา',qiTitle:'สแกน QR รับบัตรคิวผ่าน LINE<br>ไม่ต้องรอที่สาขา',qs1:'ไม่ต้องรอที่สาขา',qs2:'มีแจ้งเตือนก่อนถึงคิว'},
+  en:{title:'Select Service',mSelect:'Select Service',back:'← Back',loading:'Creating ticket...',success:'Ticket Created ✓',msg:'Please watch the display<br>Your number will be called',done:'Done',qrLbl:'Scan to queue via LINE',pill:'No waiting',qiTitle:'Scan QR to get queue ticket<br>via LINE',qs1:'No waiting at branch',qs2:'Get notified before your turn'},
+  zh:{title:'选择服务类型',mSelect:'选择服务',back:'← 返回',loading:'正在创建排队票...',success:'成功取票 ✓',msg:'请关注显示屏<br>轮到您时系统会呼叫',done:'完成',qrLbl:'扫码通过LINE取号',pill:'无需等待',qiTitle:'扫描QR码通过LINE取号<br>无需在分行等待',qs1:'无需在分行等待',qs2:'提前收到通知'}
+};
+function switchLang(l,btn){lang=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');applyLang();loadCats();}
+function applyLang(){
+  const t=T[lang];
+  document.getElementById('main-title').textContent=t.title;
+  document.getElementById('m-title').textContent=t.mSelect;
+  document.getElementById('btn-back').textContent=t.back;
+  document.getElementById('loading-text').textContent=t.loading;
+  document.getElementById('t-success').textContent=t.success;
+  document.getElementById('t-msg').innerHTML=t.msg;
+  document.getElementById('btn-done').textContent=t.done;
+  document.getElementById('qr-lbl').textContent=t.qrLbl;
+  document.getElementById('qr-pill').textContent=t.pill;
+  document.getElementById('qi-title').innerHTML=t.qiTitle;
+  document.getElementById('qs1').textContent=t.qs1;
+  document.getElementById('qs2').textContent=t.qs2;
+}
+
+/* ── CATEGORIES ── */
+async function loadCats(){
+  try{
+    const r=await fetch(`${API_URL}/api/kiosk/categories?shop_id=${SHOP_ID}&lang=${lang}`);
+    const d=await r.json();
+    if(d.success){document.getElementById('main-title').textContent=d.title;renderCats(d.categories);}
+  }catch{
+    document.getElementById('categories-grid').innerHTML='<div class="loading-grid" style="color:#fcc"><i class="fa-solid fa-triangle-exclamation"></i> ไม่สามารถเชื่อมต่อได้</div>';
+  }
+}
+function renderCats(cats){
+  const g=document.getElementById('categories-grid');
+  g.innerHTML='';
+  cats.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='cat-btn';b.onclick=()=>openCat(c);
+    b.innerHTML=`<div class="cat-icon"><i class="${c.icon}"></i></div><div class="cat-label">${c.category_name}</div>`;
+    g.appendChild(b);
+  });
+  setTimeout(fitScreen,60);
+}
+
+/* ── SERVICES ── */
+async function openCat(cat){
+  selCat=cat;
+  document.getElementById('m-cat').textContent=`${cat.queue_prefix} · ${cat.category_name}`;
+  try{
+    const r=await fetch(`${API_URL}/api/kiosk/services?category_id=${cat.category_id}&shop_id=${SHOP_ID}&lang=${lang}`);
+    const d=await r.json();
+    if(d.success){renderSvcs(d.services);document.getElementById('modal-svc').classList.add('active');}
+  }catch{alert('Cannot load services');}
+}
+function renderSvcs(svcs){
+  const g=document.getElementById('svcs-grid');
+  g.innerHTML='';
+  svcs.forEach(s=>{
+    const c=document.createElement('div');
+    c.className='svc-card';c.onclick=()=>createQueue(s);
+    c.innerHTML=`<div class="svc-name">${s.service_name}</div><div class="svc-desc">${s.description||''}</div>`;
+    g.appendChild(c);
+  });
+}
+function closeModal(){document.getElementById('modal-svc').classList.remove('active');}
+
+/* ── CREATE QUEUE ── */
+async function createQueue(svc){
+  closeModal();
+  document.getElementById('loading-overlay').classList.add('active');
+  try{
+    const r=await fetch(`${API_URL}/api/queues`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+       body: JSON.stringify({
+      shop_id:     SHOP_ID,
+      service_id:  svc.service_id,
+      category_id: selCat.category_id,
+      device_id:   1,
+      priority:    0
+    })
+    });
+    const d=await r.json();
+    if(d.success) showTicketAndPrint(d);
+    else alert('Error creating queue');
+  }catch{alert('Cannot create queue');}
+  finally{document.getElementById('loading-overlay').classList.remove('active');}
+}
+
+/* ══════════════════════════════════════════
+   🖨️  showTicketAndPrint — window.print()
+   ══════════════════════════════════════════ */
+function showTicketAndPrint(d) {
+  const q   = d.queue;
+  const pt  = d.print_ticket;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+  /* ── 1. อัปเดต screen modal ── */
+  document.getElementById('t-num').textContent = q.queue_number;
+  document.getElementById('t-info').innerHTML  =
+    `<div class="t-row">${q.category_name}</div>` +
+    `<div class="t-row">${q.service_name}</div>` +
+    `<div class="t-row">${timeStr}</div>`;
+  document.getElementById('modal-ticket').classList.add('active');
+
+  /* ── 2. เติมข้อมูลลงบัตรพิมพ์ ── */
+  document.getElementById('pt-branch').textContent  = pt.shop_name || 'BANK';
+  document.getElementById('pt-datetime').textContent = `${dateStr}  ${timeStr} น.`;
+  document.getElementById('pt-qnum').textContent     = q.queue_number;
+  document.getElementById('pt-cat').textContent      = q.category_name;
+  document.getElementById('pt-svc').textContent      = q.service_name;
+  document.getElementById('pt-ahead').textContent    =
+    q.ahead_count === 0 ? 'ไม่มีคิวรอ' : `${q.ahead_count} คิว`;
+  document.getElementById('pt-esttime').textContent  =
+    q.estimated_wait_time > 0 ? `(ประมาณ ${q.estimated_wait_time} นาที)` : 'เข้ารับบริการได้ทันที';
+  document.getElementById('pt-barcode').textContent  =
+    `${q.queue_number}  ${now.getTime()}`;
+
+  /* ── 3. สั่งพิมพ์ผ่าน RawBT API (fallback → window.print) ── */
+  setTimeout(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/printer/print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queue_id: q.queue_id, lang: lang }) 
+      });
+      const result = await res.json();
+      if (result.success) {
+        console.log('✅ RawBT print OK — คิว ' + q.queue_number);
+      } else {
+        throw new Error(result.error || 'RawBT error');
+      }
+    } catch (e) {
+      console.warn('⚠️ RawBT ไม่ได้ → fallback window.print():', e.message);
+      try { window.print(); } catch (_) {}
+    }
+  }, 300);
+
+  /* ── 4. ปิด modal อัตโนมัติหลัง 8 วินาที ── */
+  setTimeout(() => closeTicket(), 8000);
+}
+
+function closeTicket(){
+  document.getElementById('modal-ticket').classList.remove('active');
+  setTimeout(()=>location.reload(),400);
+}
+
+/* ── QR ── */
+function toggleQR(){document.getElementById('bottom-bar').classList.toggle('open');}
+function genQR(){
+  new QRCode(document.getElementById('line-qr-code'),{
+    text:'https://liff.line.me/2007943872-gimLRRti',
+    width:102,height:102,colorDark:'#000',colorLight:'#fff',
+    correctLevel:QRCode.CorrectLevel.H
+  });
+}
+
+window.onload=()=>{fitScreen();applyLang();loadCats();genQR();};
+</script>
+</body>
+</html>
